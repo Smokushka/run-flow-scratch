@@ -78,34 +78,39 @@ runs:
         echo "::group::Org Browser URL"
         
         # Run the cci command and save output to a file
-        cci org browser ${{ inputs.org-name }} --url-only | tee org-url-output.log
+        cci org browser ${{ inputs.org-name }} --url-only > org-url-output.log 2>&1
         
-        # Extract the URL using grep
-        ORG_URL=$(cat org-url-output.log | grep -o 'https://.*salesforce.com[^ ]*')
-        
-        # Create a summary with debugging information if URL is empty
-        if [ -z "$ORG_URL" ]; then
-          echo "## ⚠️ Could not extract Salesforce org URL" >> $GITHUB_STEP_SUMMARY
+        # Check if the command succeeded
+        if [ $? -eq 0 ]; then
+          # Extract the URL using grep - handle both formats
+          ORG_URL=$(grep -o 'https://[^ ]*salesforce.com[^ ]*' org-url-output.log)
+          
+          # If URL found, create the link
+          if [ ! -z "$ORG_URL" ]; then
+            # Create a clickable link in the GitHub Actions UI
+            echo "## 🔗 Salesforce Org URL" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Click the link below to open the Salesforce org:" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "[Open Salesforce Org]($ORG_URL)" >> $GITHUB_STEP_SUMMARY
+            echo "org-url=$ORG_URL" >> $GITHUB_OUTPUT
+          else
+            echo "## ⚠️ URL extraction failed" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Found output but couldn't extract URL. Raw output:" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            cat org-url-output.log >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "org-url=error" >> $GITHUB_OUTPUT
+          fi
+        else
+          echo "## ❌ Command failed" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Raw output from cci command:" >> $GITHUB_STEP_SUMMARY
+          echo "The cci org browser command failed. Output:" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
           cat org-url-output.log >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
           echo "org-url=error" >> $GITHUB_OUTPUT
-        else
-          # Set the URL as an output variable
-          echo "org-url=$ORG_URL" >> $GITHUB_OUTPUT
-          
-          # Create a clickable link in the GitHub Actions UI
-          echo "## 🔗 Salesforce Org URL" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Click the link below to open the Salesforce org:" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "[Open Salesforce Org]($ORG_URL)" >> $GITHUB_STEP_SUMMARY
         fi
         
         echo "::endgroup::"
-        env:
-          pythonLocation: /opt/hostedtoolcache/Python/3.10.16/x64
-          LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.10.16/x64/lib
-          CUMULUSCI_SERVICE_github: ${{ env.CUMULUSCI_SERVICE_github }}
