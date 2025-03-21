@@ -62,8 +62,3 @@ runs:
             -f description="${{ inputs.commit-status-description-prefix }}$STATUS" \
             -f context='${{ inputs.commit-status-name }}'
         shell: bash
-      - name: Delete Scratch Org
-        if: ${{ always() }}
-        run: |
-          cci org scratch_delete '${{ inputs.org-name }}'
-        shell: bash
