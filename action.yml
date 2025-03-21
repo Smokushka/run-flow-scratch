@@ -65,21 +65,40 @@ runs:
       - name: Get Org URL
         id: extract-org-url
         run: |
+               - name: Get Org URL
+        id: extract-org-url
+        run: |
           echo "::group::Org Browser URL"
-          # Run the cci command and store the output
-          ORG_BROWSER_OUTPUT=$(cci org browser ${{ inputs.org-name }} --url-only)
+          
+          # Run the cci command and save output to a file for debugging
+          cci org browser ${{ inputs.org-name }} --url-only | tee org-url-output.log
           
           # Extract the URL using grep
-          ORG_URL=$(echo "$ORG_BROWSER_OUTPUT" | grep -o 'https://.*salesforce.com[^ ]*')
+          ORG_URL=$(cat org-url-output.log | grep -o 'https://.*salesforce.com[^ ]*')
           
-          # Set the URL as an output variable
-          echo "org-url=$ORG_URL" >> $GITHUB_OUTPUT
+          # Create a summary with debugging information if URL is empty
+          if [ -z "$ORG_URL" ]; then
+            echo "## ⚠️ Could not extract Salesforce org URL" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Raw output from cci command:" >> $GITHUB_STEP_SUMMARY
+            echo "```" >> $GITHUB_STEP_SUMMARY
+            cat org-url-output.log >> $GITHUB_STEP_SUMMARY
+            echo "```" >> $GITHUB_STEP_SUMMARY
+          else
+            # Set the URL as an output variable
+            echo "org-url=$ORG_URL" >> $GITHUB_OUTPUT
+            
+            # Create a clickable link in the GitHub Actions UI
+            echo "## 🔗 Salesforce Org URL" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Click the link below to open the Salesforce org:" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "[Open Salesforce Org]($ORG_URL)" >> $GITHUB_STEP_SUMMARY
+          fi
           
-          # Create a clickable link in the GitHub Actions UI
-          echo "## 🔗 Salesforce Org URL" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Click the link below to open the Salesforce org:" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "[Open Salesforce Org]($ORG_URL)" >> $GITHUB_STEP_SUMMARY
           echo "::endgroup::"
         shell: bash
+        env:
+          pythonLocation: /opt/hostedtoolcache/Python/3.10.16/x64
+          LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.10.16/x64/lib
+          CUMULUSCI_SERVICE_github: ${{ env.CUMULUSCI_SERVICE_github }}
