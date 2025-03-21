@@ -114,3 +114,34 @@ runs:
         fi
         
         echo "::endgroup::"
+    - name: Create Check with Salesforce Org URL
+      if: steps.extract-org-url.outputs.org-url != 'error'
+      uses: actions/github-script@v6
+      with:
+        github-token: ${{ github.token }}
+        script: |
+          const orgUrl = process.env.ORG_URL;
+          const { owner, repo } = context.repo;
+          const sha = context.sha;
+          
+          // Create a descriptive name that shows it's an access link
+          await github.rest.checks.create({
+            owner,
+            repo,
+            name: '🔗 Salesforce QA Org',
+            head_sha: sha,
+            status: 'completed',
+            conclusion: 'success',
+            output: {
+              title: 'Salesforce QA Org Ready',
+              summary: `A Salesforce QA org has been provisioned with your changes.\n\n[Click here to access the Salesforce org](${orgUrl})`,
+              text: 'This org will be available for up to 7 days. Use it to verify your changes in a clean environment.'
+            },
+            actions: [{
+              label: 'Open SF Org',
+              description: 'Open Salesforce Org in new tab',
+              identifier: 'open_sf_org'
+            }]
+          });
+      env:
+        ORG_URL: ${{ steps.extract-org-url.outputs.org-url }}
