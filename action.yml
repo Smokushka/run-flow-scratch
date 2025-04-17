@@ -38,7 +38,7 @@ runs:
     - uses: actions/checkout@v3
     
     - name: Set Up CumulusCI
-      uses: cumulus-actions/setup-cumulus@v1
+      uses: Smokushka/setup-cumulus@v1
       with:
         cumulusci-version: ${{ inputs.cumulusci-version }}
         sfdx-version: ${{ inputs.sfdx-version }}
