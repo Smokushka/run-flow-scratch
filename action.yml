@@ -57,60 +57,21 @@ runs:
         flow-name: ${{ inputs.flow-name }}
     
     - name: Set Commit Status
-      if: ${{ inputs.commit-status-regex != '' && inputs.commit-status-name != '' }}
-      shell: bash
-      env:
-        GITHUB_TOKEN: ${{ github.token }}
-      run: |
-        STATUS=$(cat cumulusci-flow.log | grep -o '${{ inputs.commit-status-regex }}')
-        gh api \
-          --method POST \
-          -H "Accept: application/vnd.github.v3+json" \
-          "/repos/${{ github.repository }}/statuses/${{ github.sha }}" \
-          -f state="success" \
-          -f description="${{ inputs.commit-status-description-prefix }}$STATUS" \
-          -f context="${{ inputs.commit-status-name }}"
-    
-    - name: Get Org URL
-      id: extract-org-url
-      shell: bash
-      run: |
-        echo "::group::Org Browser URL"
-        
-        # Run the cci command and save output to a file
-        cci org browser ${{ inputs.org-name }} --url-only > org-url-output.log 2>&1
-        
-        # Check if the command succeeded
-        if [ $? -eq 0 ]; then
-          # Extract the URL using grep - handle both formats
-          ORG_URL=$(grep -o 'https://[^ ]*salesforce.com[^ ]*' org-url-output.log)
-          
-          # If URL found, create the link
-          if [ ! -z "$ORG_URL" ]; then
-            # Create a clickable link in the GitHub Actions UI
-            echo "## 🔗 Salesforce Org URL" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "Click the link below to open the Salesforce org:" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "[Open Salesforce Org]($ORG_URL)" >> $GITHUB_STEP_SUMMARY
-            echo "org-url=$ORG_URL" >> $GITHUB_OUTPUT
-          else
-            echo "## ⚠️ URL extraction failed" >> $GITHUB_STEP_SUMMARY
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "Found output but couldn't extract URL. Raw output:" >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-            cat org-url-output.log >> $GITHUB_STEP_SUMMARY
-            echo '```' >> $GITHUB_STEP_SUMMARY
-            echo "org-url=error" >> $GITHUB_OUTPUT
-          fi
-        else
-          echo "## ❌ Command failed" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "The cci org browser command failed. Output:" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          cat org-url-output.log >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          echo "org-url=error" >> $GITHUB_OUTPUT
-        fi
-        
-        echo "::endgroup::"
+      if: ${{ inputs.commit-status-regex && inputs.commit-status-name }}
+        env:
+          GITHUB_TOKEN: '${{ github.token }}'
+        run: |
+          STATUS=$(cat cumulusci-flow.log | grep -o '${{ inputs.commit-status-regex }}')
+          gh api \
+            --method POST \
+            -H "Accept: application/vnd.github.v3+json" \
+            '/repos/${{ github.repository }}/statuses/${{ github.sha }}' \
+            -f state='success' \
+            -f description="${{ inputs.commit-status-description-prefix }}$STATUS" \
+            -f context='${{ inputs.commit-status-name }}'
+        shell: bash
+      - name: Delete Scratch Org
+        if: ${{ always() }}
+        run: |
+          cci org scratch_delete '${{ inputs.org-name }}'
+        shell: bash
